@@ -214,15 +214,17 @@ $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <body>
     <div class="container py-4">
         <h1 class="mb-4 text-center text-primary">Rechercher un covoiturage</h1>
-        <form method="get" class="search-form" id="searchForm">
+    <form method="get" class="search-form" id="searchForm" style="opacity:0;transform:translateY(-30px);">
             <div class="row g-3">
                 <div class="col-md-4">
                     <label class="form-label">Départ</label>
-                    <input type="text" name="depart" class="form-control" value="<?= htmlspecialchars($depart) ?>" required placeholder="Ville de départ">
+                    <input type="text" name="depart" id="depart" class="form-control" value="<?= htmlspecialchars($depart) ?>" autocomplete="off" required placeholder="Ville de départ">
+                    <div id="suggestions-depart" class="suggestions-list" style="display:none;position:absolute;z-index:10;background:#fff;border:1px solid #ccc;width:100%;"></div>
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Arrivée</label>
-                    <input type="text" name="arrivee" class="form-control" value="<?= htmlspecialchars($arrivee) ?>" required placeholder="Ville d'arrivée">
+                    <input type="text" name="arrivee" id="arrivee" class="form-control" value="<?= htmlspecialchars($arrivee) ?>" autocomplete="off" required placeholder="Ville d'arrivée">
+                    <div id="suggestions-arrivee" class="suggestions-list" style="display:none;position:absolute;z-index:10;background:#fff;border:1px solid #ccc;width:100%;"></div>
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Date</label>
@@ -266,10 +268,10 @@ $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
         <?php if ($depart && $arrivee && $date): ?>
             <h2 class="mb-4 text-center">Résultats</h2>
             <?php if (count($results) > 0): ?>
-                <div class="row">
+                <div class="row" id="cardsRow">
                 <?php foreach ($results as $r): ?>
                     <div class="col-md-6 col-lg-4">
-                        <div class="card card-covoit p-3">
+                        <div class="card card-covoit p-3" style="opacity:0;transform:translateY(40px);">
                             <div class="d-flex align-items-center mb-3">
                                 <img src="data:image/jpeg;base64,<?= base64_encode($r['photo']) ?>" alt="Photo conducteur" class="driver-photo me-3">
                                 <div>
@@ -354,9 +356,48 @@ $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
         <?php endif; ?>
     </div>
     <!-- Bootstrap JS CDN -->
+    <style>
+    .suggestions-list {
+        max-height: 180px;
+        overflow-y: auto;
+        border-radius: 0 0 8px 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+    }
+    .suggestion-item {
+        padding: 8px 12px;
+        cursor: pointer;
+        font-size: 1.05em;
+    }
+    .suggestion-item:hover {
+        background: #e9ecef;
+    }
+    </style>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Animation du formulaire de recherche
+        setTimeout(function(){
+            const form = document.getElementById('searchForm');
+            if(form) {
+                form.style.transition = 'opacity 0.7s, transform 0.7s';
+                form.style.opacity = 1;
+                form.style.transform = 'translateY(0)';
+            }
+        }, 200);
+
+        // Animation des cartes covoiturage
+        setTimeout(function(){
+            const cards = document.querySelectorAll('.card-covoit');
+            cards.forEach(function(card, i){
+                setTimeout(function(){
+                    card.style.transition = 'opacity 0.6s, transform 0.6s';
+                    card.style.opacity = 1;
+                    card.style.transform = 'translateY(0)';
+                }, 100 + i*120);
+            });
+        }, 400);
+
+        // Animation du toggle filtres
         const toggle = document.querySelector('.filters-toggle');
         const bar = document.querySelector('.filters-bar');
         if(toggle && bar) {
@@ -366,6 +407,50 @@ $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 bar.classList.toggle('open');
             });
         }
+
+        // Autocomplétion villes départ/arrivée
+        function setupAutocomplete(inputId, suggestionsId) {
+            var input = document.getElementById(inputId);
+            var suggestions = document.getElementById(suggestionsId);
+            var timer;
+            input.addEventListener('input', function(){
+                var val = input.value.trim();
+                if(val.length >= 3){
+                    clearTimeout(timer);
+                    timer = setTimeout(function(){
+                        fetch('https://geo.api.gouv.fr/communes?nom='+encodeURIComponent(val)+'&fields=nom&boost=population&limit=10')
+                            .then(r=>r.json())
+                            .then(data=>{
+                                suggestions.innerHTML = '';
+                                if(data.length > 0){
+                                    data.forEach(function(city){
+                                        var div = document.createElement('div');
+                                        div.className = 'suggestion-item';
+                                        div.textContent = city.nom;
+                                        div.onclick = function(){
+                                            input.value = city.nom;
+                                            suggestions.style.display = 'none';
+                                        };
+                                        suggestions.appendChild(div);
+                                    });
+                                    suggestions.style.display = 'block';
+                                }else{
+                                    suggestions.style.display = 'none';
+                                }
+                            });
+                    }, 250);
+                }else{
+                    suggestions.style.display = 'none';
+                }
+            });
+            document.addEventListener('click', function(e){
+                if(!suggestions.contains(e.target) && e.target !== input){
+                    suggestions.style.display = 'none';
+                }
+            });
+        }
+        setupAutocomplete('depart','suggestions-depart');
+        setupAutocomplete('arrivee','suggestions-arrivee');
     });
     </script>
 </body>

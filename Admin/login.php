@@ -49,6 +49,15 @@ try {
         $email = $_POST['email'] ?? '';
         $password = $_POST['password'] ?? '';
         $admin = $db->admins->findOne(['email' => $email]);
+        // DEBUG
+        echo '<pre style="color:blue">';
+        var_dump($admin);
+        if ($admin) {
+            $verif = password_verify($password, $admin['password']);
+            echo 'password_verify: ' . ($verif ? 'true' : 'false') . "\n";
+        }
+        echo '</pre>';
+        // FIN DEBUG
         if ($admin && password_verify($password, $admin['password'])) {
             $_SESSION['admin_logged_in'] = true;
             $_SESSION['admin_id'] = (string)$admin['_id'];

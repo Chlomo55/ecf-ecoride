@@ -62,63 +62,107 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['participer'])) {
 }
 ?>
 
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
     <title>Détail du Covoiturage</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background: #f8f9fa; }
+        .card-covoit { box-shadow: 0 2px 8px rgba(0,0,0,0.07); border-radius: 1rem; margin-bottom: 2rem; transition: box-shadow 0.2s; }
+        .card-covoit:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.13); }
+        .driver-photo { width: 90px; height: 90px; object-fit: cover; border-radius: 50%; border: 2px solid #0d6efd; }
+        .badge-eco { background: #198754; }
+        .list-group-item { background: #fff; }
+        .back-link { margin-bottom: 1.5rem; display: inline-block; color: #2563eb; text-decoration: none; font-weight: 500; }
+        .back-link:hover { text-decoration: underline; }
+    </style>
 </head>
 <body>
-    <h1>Détail du trajet</h1>
-    <div style="border:1px solid #ccc; padding:15px; margin-bottom:20px;">
-        <h2>Conducteur : <?= htmlspecialchars($covoit['pseudo']) ?> (Note : <?= $covoit['note'] ?>/5)</h2>
-        <img src="data:image/jpeg;base64,<?= base64_encode($covoit['photo']) ?>" width="100"><br><br>
-        <p><strong>Note :</strong> <?= $covoit['note']. '/5' ?></p>
-
-        <h3>Itinéraire</h3>
-        <p><strong>Départ :</strong> <?= $covoit['depart'] ?> - <?= date('d/m/Y H:i', strtotime($covoit['heure_depart'])) ?></p>
-        <p><strong>Arrivée :</strong> <?= $covoit['arrivee'] ?> - <?= date('d/m/Y H:i', strtotime($covoit['heure_arrivee'])) ?></p>
-        <?php
-        $duration = strtotime($covoit['heure_arrivee']) - strtotime($covoit['heure_depart']);
-        $hours = floor($duration / 3600);
-        $minutes = floor(($duration % 3600) / 60);
-        ?>
-        <p><strong>Durée :</strong> <?= $hours ?>h<?= $minutes > 0 ? $minutes . 'min' : '' ?></p>
-        <p><strong>Prix :</strong> <?= $covoit['prix'] ?> €</p>
-        <p><strong>Places restantes :</strong> <?= $covoit['place'] ?></p>
-        <p><strong>Voyage écologique :</strong> <?= strtolower($covoit['energie']) == 'electrique' ? 'Oui' : 'Non' ?></p>
-
-        <h3>Véhicule</h3>
-        <p><strong>Marque :</strong> <?= $covoit['marque'] ?></p>
-        <p><strong>Modèle :</strong> <?= $covoit['modele'] ?></p>
-        <p><strong>Énergie :</strong> <?= $covoit['energie'] ?></p>
-
-        <h3>Préférences du conducteur</h3>
-        <p><?= nl2br(htmlspecialchars($covoit['preferences'])) ?></p>
-
-        <br>
-        <a href="vue.php">← Retour à la recherche</a>
-
-        <hr>
-        <?php if (isset($_SESSION['user_logged_in']) && $_SESSION['user_logged_in']): ?>
-            <?php if ($_SESSION['category'] == 'passager'): ?>
-                <?php if ($_SESSION['credit'] >= $covoit['prix'] && $covoit['place'] > 0): ?>
-                    <form method="post" onsubmit="return confirm('Voulez-vous utiliser <?= $covoit['prix'] ?> crédits pour participer à ce trajet ?');">
-                        <input type="hidden" name="participer" value="1">
-                        <button type="submit">Participer</button>
-                    </form>
-                <?php else: ?>
-                    <p style="color:red;">
-                        <?php if ($covoit['place'] <= 0) echo "Aucune place disponible."; ?>
-                        <?php if ($_SESSION['credit'] < $covoit['prix']) echo "Crédit insuffisant."; ?>
-                    </p>
-                <?php endif; ?>
-            <?php else: ?>
-                <p>Vous devez être un passager inscrit pour participer. <a href="inscription.php">Créer un compte</a></p>
-            <?php endif; ?>
-        <?php else: ?>
-            <p><a href="connexion.php">Connectez-vous</a> pour participer à ce covoiturage.</p>
-        <?php endif; ?>
+    <div class="container py-4">
+        <a href="vue.php" class="back-link">&larr; Retour à la recherche</a>
+        <div class="row justify-content-center">
+            <div class="col-md-8 col-lg-7">
+                <div class="card card-covoit p-4">
+                    <div class="d-flex align-items-center mb-3">
+                        <img src="data:image/jpeg;base64,<?= base64_encode($covoit['photo']) ?>" alt="Photo conducteur" class="driver-photo me-3">
+                        <div>
+                            <h4 class="mb-0">Conducteur : <?= htmlspecialchars($covoit['pseudo']) ?></h4>
+                            <div>
+                                <span class="badge bg-warning text-dark">Note : <?= number_format($covoit['note'], 1) ?> ★</span>
+                            </div>
+                        </div>
+                    </div>
+                    <ul class="list-group list-group-flush mb-3">
+                        <li class="list-group-item">
+                            <strong>Départ :</strong> <?= htmlspecialchars($covoit['depart']) ?> <br>
+                            <span class="text-muted"><?= date('d/m/Y', strtotime($covoit['heure_depart'])) ?> à <?= date('H:i', strtotime($covoit['heure_depart'])) ?></span>
+                        </li>
+                        <li class="list-group-item">
+                            <strong>Arrivée :</strong> <?= htmlspecialchars($covoit['arrivee']) ?> <br>
+                            <span class="text-muted"><?= date('d/m/Y', strtotime($covoit['heure_arrivee'])) ?> à <?= date('H:i', strtotime($covoit['heure_arrivee'])) ?></span>
+                        </li>
+                        <li class="list-group-item">
+                            <?php
+                                $duration = strtotime($covoit['heure_arrivee']) - strtotime($covoit['heure_depart']);
+                                $hours = floor($duration / 3600);
+                                $minutes = floor(($duration % 3600) / 60);
+                            ?>
+                            <strong>Durée :</strong> <?= $hours ?>h<?= $minutes > 0 ? $minutes : '00' ?>
+                        </li>
+                        <li class="list-group-item">
+                            <strong>Prix :</strong> <span class="text-success"><?= number_format($covoit['prix'], 2) ?> €</span>
+                        </li>
+                        <li class="list-group-item">
+                            <strong>Places restantes :</strong> <?= $covoit['place'] ?>
+                        </li>
+                        <li class="list-group-item">
+                            <strong>Écologique :</strong>
+                            <?php if (strtolower($covoit['energie']) == 'electrique'): ?>
+                                <span class="badge badge-eco">Oui</span>
+                            <?php else: ?>
+                                <span class="badge bg-secondary">Non</span>
+                            <?php endif; ?>
+                        </li>
+                    </ul>
+                    <div class="mb-3">
+                        <h5>Véhicule</h5>
+                        <p><strong>Marque :</strong> <?= htmlspecialchars($covoit['marque']) ?> <br>
+                        <strong>Modèle :</strong> <?= htmlspecialchars($covoit['modele']) ?> <br>
+                        <strong>Énergie :</strong> <?= htmlspecialchars($covoit['energie']) ?></p>
+                    </div>
+                    <div class="mb-3">
+                        <h5>Préférences du conducteur</h5>
+                        <p><?= nl2br(htmlspecialchars($covoit['preferences'])) ?></p>
+                    </div>
+                    <div class="mb-3">
+                        <?php if (isset($_SESSION['user_logged_in']) && $_SESSION['user_logged_in']): ?>
+                            <?php if ($_SESSION['category'] == 'passager'): ?>
+                                <?php if ($_SESSION['credit'] >= $covoit['prix'] && $covoit['place'] > 0): ?>
+                                    <form method="post" onsubmit="return confirm('Voulez-vous utiliser <?= $covoit['prix'] ?> crédits pour participer à ce trajet ?');">
+                                        <input type="hidden" name="participer" value="1">
+                                        <button type="submit" class="btn btn-outline-primary w-100">Participer</button>
+                                    </form>
+                                <?php else: ?>
+                                    <div class="alert alert-danger text-center">
+                                        <?php if ($covoit['place'] <= 0) echo "Aucune place disponible."; ?>
+                                        <?php if ($_SESSION['credit'] < $covoit['prix']) echo "Crédit insuffisant."; ?>
+                                    </div>
+                                <?php endif; ?>
+                            <?php else: ?>
+                                <div class="alert alert-info text-center">Vous devez être un passager inscrit pour participer. <a href="inscription.php">Créer un compte</a></div>
+                            <?php endif; ?>
+                        <?php else: ?>
+                            <div class="alert alert-secondary text-center"><a href="connexion.php">Connectez-vous</a> pour participer à ce covoiturage.</div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
