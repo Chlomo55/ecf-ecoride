@@ -1,39 +1,31 @@
 <?php
 session_start();
-$host = 'localhost';
-$dbname = 'ecoride';
-$user = 'root';
-$pass = '';
 
 $error = '';
 $info = '';
 
+require 'vendor/autoload.php';
 try {
-    $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8", $user, $pass);
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $mongoClient = new MongoDB\Client("mongodb://localhost:27017");
+    $db = $mongoClient->selectDatabase('admin');
 
     // Demande de mot de passe temporaire
     if (isset($_POST['reset']) && !empty($_POST['email'])) {
         $email = $_POST['email'];
-        $stmt = $pdo->prepare("SELECT * FROM admin WHERE email = ?");
-        $stmt->execute([$email]);
-        $admin = $stmt->fetch(PDO::FETCH_ASSOC);
+        $admin = $db->admins->findOne(['email' => $email]);
         if ($admin) {
             // Générer un mot de passe temporaire
             $temp_pass = bin2hex(random_bytes(4));
             $hash = password_hash($temp_pass, PASSWORD_DEFAULT);
-            $stmt = $pdo->prepare("UPDATE admin SET password = ? WHERE id = ?");
-            $stmt->execute([$hash, $admin['id']]);
-            
-            // Envoyer le mail
-            require 'vendor/autoload.php';
+            $db->admins->updateOne(['_id' => $admin['_id']], ['$set' => ['password' => $hash]]);
 
+            // Envoyer le mail
             $mail = new PHPMailer\PHPMailer\PHPMailer();
             $mail->isSMTP();
             $mail->Host = 'smtp.gmail.com';
             $mail->SMTPAuth = true;
-            $mail->Username = 'ecoride.ecf.studi@gmail.com'; // Ton adresse Gmail
-            $mail->Password = 'jsdglhptfbkgmwzg'; // Mot de passe d'application Gmail
+            $mail->Username = 'ecoride.ecf.studi@gmail.com';
+            $mail->Password = 'jsdglhptfbkgmwzg';
             $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
             $mail->Port = 587;
 
@@ -56,19 +48,17 @@ try {
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['reset'])) {
         $email = $_POST['email'] ?? '';
         $password = $_POST['password'] ?? '';
-        $stmt = $pdo->prepare("SELECT * FROM admin WHERE email = ?");
-        $stmt->execute([$email]);
-        $admin = $stmt->fetch(PDO::FETCH_ASSOC);
+        $admin = $db->admins->findOne(['email' => $email]);
         if ($admin && password_verify($password, $admin['password'])) {
             $_SESSION['admin_logged_in'] = true;
-            $_SESSION['admin_id'] = $admin['id'];
+            $_SESSION['admin_id'] = (string)$admin['_id'];
             header('Location: dashboard.php');
             exit;
         } else {
             $error = 'Identifiants incorrects.';
         }
     }
-} catch (PDOException $e) {
+} catch (Exception $e) {
     $error = "Erreur de connexion à la base de données.";
 }
 ?>
