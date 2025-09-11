@@ -180,7 +180,81 @@ button[type="submit"]:hover {
         <a href="covoiturage.php">Proposer un covoiturage</a>
         <a href="vue.php">Vue</a>
         <a href="historique.php">Historique</a>
+        <?php
+        // Affiche le bouton Mes Trajets si l'utilisateur est chauffeur et a au moins un trajet
+        if (in_array($_SESSION['category'], ['chauffeur','2'])) {
+            $stmt = $pdo->prepare('SELECT * FROM covoiturage WHERE id_chauffeur = ?');
+            $stmt->execute([$_SESSION['user_id']]);
+            if ($stmt->rowCount() > 0) {
+                echo '<button id="showTrajetsBtn" style="background:#009688;color:#fff;padding:10px 18px;border:none;border-radius:7px;cursor:pointer;">Mes Trajets</button>';
+            }
+        }
+        ?>
     </div>
+    <div id="mesTrajets" style="display:none;margin-top:30px;text-align:left;">
+        <h2>Mes Trajets</h2>
+        <?php
+        if (in_array($_SESSION['category'], ['chauffeur','2'])) {
+            $stmt = $pdo->prepare('SELECT * FROM covoiturage WHERE id_chauffeur = ? ORDER BY heure_depart DESC');
+            $stmt->execute([$_SESSION['user_id']]);
+            $trajets = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            if ($trajets) {
+                echo '<ul style="list-style:none;padding:0;">';
+                foreach ($trajets as $t) {
+                    $etatTxt = ($t['etat']==0) ? 'En attente' : (($t['etat']==2) ? 'Commencé' : (($t['etat']==3) ? 'Terminé' : 'Annulé'));
+                    echo '<li style="margin-bottom:18px;padding:14px;background:#e0f2f1;border-radius:8px;">';
+                    echo '<b>'.htmlspecialchars($t['depart']).' → '.htmlspecialchars($t['arrivee']).'</b> le '.date('d/m/Y H:i',strtotime($t['heure_depart']));
+                    // Récupérer la voiture
+                    $vstmt = $pdo->prepare('SELECT marque, modele, immatriculation FROM voiture WHERE id = ?');
+                    $vstmt->execute([$t['voiture_id']]);
+                    $v = $vstmt->fetch(PDO::FETCH_ASSOC);
+                    if($v){
+                        echo '<br><span style="color:#333;">Véhicule : <b>'.htmlspecialchars($v['marque'].' '.$v['modele'].' ('.$v['immatriculation'].')</b></span>');
+                    }
+                    echo '<br><span style="color:#333;">Heure d\'arrivée : <b>'.date('d/m/Y H:i',strtotime($t['heure_arrivee'])).'</b></span>';
+                    echo '<br><span style="color:#333;">Places restantes : <b>'.$t['place'].'</b></span>';
+                    echo '<br>État : <span style="color:#009688;font-weight:bold;">'.$etatTxt.'</span>';
+                    if ($t['etat']==0) {
+                        echo ' <button class="trajet-action-btn" data-id="'.$t['id'].'" data-action="commencer" style="margin-left:10px;background:#26c6da;color:#fff;border:none;padding:7px 14px;border-radius:6px;cursor:pointer;">Commencer</button>';
+                    } elseif ($t['etat']==2) {
+                        echo ' <button class="trajet-action-btn" data-id="'.$t['id'].'" data-action="finir" style="margin-left:10px;background:#c62828;color:#fff;border:none;padding:7px 14px;border-radius:6px;cursor:pointer;">Finir le trajet</button>';
+                    }
+                    echo '</li>';
+                }
+                echo '</ul>';
+            } else {
+                echo '<p>Aucun trajet trouvé.</p>';
+            }
+        }
+        ?>
+    </div>
+    <script>
+    document.addEventListener('DOMContentLoaded',function(){
+        var btn = document.getElementById('showTrajetsBtn');
+        var bloc = document.getElementById('mesTrajets');
+        if(btn && bloc){
+            btn.addEventListener('click',function(){
+                bloc.style.display = bloc.style.display==='none' ? 'block' : 'none';
+            });
+        }
+        document.querySelectorAll('.trajet-action-btn').forEach(function(b){
+            b.addEventListener('click',function(){
+                var id = this.getAttribute('data-id');
+                var action = this.getAttribute('data-action');
+                this.disabled = true;
+                this.textContent = '...';
+                fetch('trajet_action.php',{
+                    method:'POST',
+                    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+                    body:'trajet_id='+id+'&action='+action
+                })
+                .then(r=>r.json())
+                .then(data=>{location.reload();})
+                .catch(()=>{alert('Erreur serveur');location.reload();});
+            });
+        });
+    });
+    </script>
 </div>
 <?php
 if (isset($_SESSION['category']) && ($_SESSION['category'] == 'chauffeur' || $_SESSION['category'] == '2')) {

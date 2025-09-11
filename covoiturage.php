@@ -11,11 +11,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Vérifie la catégorie de l'utilisateur
     $categorie = $_SESSION['category'];
-    $etat = 0;
+    $etat = 0; // 0 = en attente, 2 = commencé, 3 = terminé, 1 = annulé
     $id_chauffeur = $_SESSION['user_id'];
-    if ($categorie === 'chauffeur' || $categorie === '2') {
-        $etat = 1;
-    }
 
     // Récupère le nombre de places de la voiture sélectionnée
     $stmt = $pdo->prepare("SELECT nb_place FROM voiture WHERE id = ? AND user_id = ?");
